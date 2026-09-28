@@ -147,6 +147,24 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Patch branding (NPC-PuestoRemoto)
+        shell: bash
+        run: |
+          set -e
+          sed -i 's|RENDEZVOUS_SERVERS: \&\[\&str\] = \&\["rs-ny.rustdesk.com"\]|RENDEZVOUS_SERVERS: \&[\&str] = \&["npc-puestoremoto2.npuntocero.com"]|' libs/hbb_common/src/config.rs
+          sed -i 's|RS_PUB_KEY: \&str = "OeVuKk5nlHiXp+APNn0Y3pC1Iwpwn44JGqrQCsWqmBw="|RS_PUB_KEY: \&str = "WJAJ37v1NkWpYmPhFw4ndItAIGwbt9WFmjYewI6F3P8="|' libs/hbb_common/src/config.rs
+          sed -i 's|RwLock::new("RustDesk".to_owned())|RwLock::new("NPCPuestoRemoto".to_owned())|' libs/hbb_common/src/config.rs
+          sed -i 's|RwLock::new("com.carriez".to_owned())|RwLock::new("com.npuntocero".to_owned())|' libs/hbb_common/src/config.rs
+          sed -i 's|ProductName = "RustDesk"|ProductName = "NPC-PuestoRemoto Agent"|' Cargo.toml
+          sed -i 's|FileDescription = "RustDesk Remote Desktop"|FileDescription = "NPC-PuestoRemoto Agent"|' Cargo.toml
+          sed -i 's|OriginalFilename = "rustdesk.exe"|OriginalFilename = "npcpuestoremoto.exe"|' Cargo.toml
+          sed -i 's|VALUE "CompanyName", "Purslane Tech Pte. Ltd."|VALUE "CompanyName", "npuntoCerO Sistemas Tecnologicos"|' flutter/windows/runner/Runner.rc
+          sed -i 's|VALUE "FileDescription", "RustDesk Remote Desktop"|VALUE "FileDescription", "NPC-PuestoRemoto Agent"|' flutter/windows/runner/Runner.rc
+          sed -i 's|VALUE "InternalName", "rustdesk"|VALUE "InternalName", "npcpuestoremoto"|' flutter/windows/runner/Runner.rc
+          sed -i 's|VALUE "OriginalFilename", "rustdesk.exe"|VALUE "OriginalFilename", "npcpuestoremoto.exe"|' flutter/windows/runner/Runner.rc
+          sed -i 's|VALUE "ProductName", "RustDesk"|VALUE "ProductName", "NPC-PuestoRemoto Agent"|' flutter/windows/runner/Runner.rc
+          echo "Branding NPC-PuestoRemoto aplicado (Windows)."
+
       - name: Restore bridge files
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -778,6 +796,18 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           submodules: recursive
+
+      - name: Patch branding (NPC-PuestoRemoto)
+        shell: bash
+        run: |
+          set -e
+          sed -i '' 's|RENDEZVOUS_SERVERS: \&\[\&str\] = \&\["rs-ny.rustdesk.com"\]|RENDEZVOUS_SERVERS: \&[\&str] = \&["npc-puestoremoto2.npuntocero.com"]|' libs/hbb_common/src/config.rs
+          sed -i '' 's|RS_PUB_KEY: \&str = "OeVuKk5nlHiXp+APNn0Y3pC1Iwpwn44JGqrQCsWqmBw="|RS_PUB_KEY: \&str = "WJAJ37v1NkWpYmPhFw4ndItAIGwbt9WFmjYewI6F3P8="|' libs/hbb_common/src/config.rs
+          sed -i '' 's|RwLock::new("RustDesk".to_owned())|RwLock::new("NPCPuestoRemoto".to_owned())|' libs/hbb_common/src/config.rs
+          sed -i '' 's|RwLock::new("com.carriez".to_owned())|RwLock::new("com.npuntocero".to_owned())|' libs/hbb_common/src/config.rs
+          sed -i '' 's|<string>com.carriez.rustdesk</string>|<string>com.npuntocero.npcpuestoremoto</string>|' flutter/macos/Runner/Info.plist
+          sed -i '' 's|<string>rustdesk</string>|<string>npcpuestoremoto</string>|' flutter/macos/Runner/Info.plist
+          echo "Branding NPC-PuestoRemoto aplicado (macOS)."
 
       - name: Import the codesign cert
         if: env.MACOS_P12_BASE64 != null
