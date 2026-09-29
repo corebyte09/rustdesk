@@ -163,6 +163,13 @@ jobs:
           sed -i 's|VALUE "InternalName", "rustdesk"|VALUE "InternalName", "npcpuestoremoto"|' flutter/windows/runner/Runner.rc
           sed -i 's|VALUE "OriginalFilename", "rustdesk.exe"|VALUE "OriginalFilename", "npcpuestoremoto.exe"|' flutter/windows/runner/Runner.rc
           sed -i 's|VALUE "ProductName", "RustDesk"|VALUE "ProductName", "NPC-PuestoRemoto Agent"|' flutter/windows/runner/Runner.rc
+          sed -i 's|LegalCopyright = "Copyright © 2026 Purslane Tech Pte. Ltd. All rights reserved."|LegalCopyright = "Copyright © NpuntoCerO Sistemas Tecnológicos"|' Cargo.toml
+          sed -i 's|VALUE "LegalCopyright", "Copyright © 2026 Purslane Tech Pte. Ltd. All rights reserved."|VALUE "LegalCopyright", "Copyright © NpuntoCerO Sistemas Tecnológicos"|' flutter/windows/runner/Runner.rc
+          sed -i 's|BUILTIN_SETTINGS: RwLock<HashMap<String, String>> = Default::default();|BUILTIN_SETTINGS: RwLock<HashMap<String, String>> = RwLock::new(HashMap::from([("hide-powered-by-me".to_owned(), "Y".to_owned())]));|' libs/hbb_common/src/config.rs
+          sed -i 's|LegalCopyright = "Copyright © 2026 Purslane Tech Pte. Ltd. All rights reserved."|LegalCopyright = "Copyright © NpuntoCerO Sistemas Tecnológicos"|' libs/portable/Cargo.toml
+          sed -i 's|ProductName = "RustDesk"|ProductName = "NPC-PuestoRemoto Agent"|' libs/portable/Cargo.toml
+          sed -i 's|FileDescription = "RustDesk Remote Desktop"|FileDescription = "NPC-PuestoRemoto Agent"|' libs/portable/Cargo.toml
+          sed -i 's|OriginalFilename = "rustdesk.exe"|OriginalFilename = "npcpuestoremoto.exe"|' libs/portable/Cargo.toml
           echo "Branding NPC-PuestoRemoto aplicado (Windows)."
 
       - name: Restore bridge files
@@ -807,6 +814,7 @@ jobs:
           sed -i '' 's|RwLock::new("com.carriez".to_owned())|RwLock::new("com.npuntocero".to_owned())|' libs/hbb_common/src/config.rs
           sed -i '' 's|<string>com.carriez.rustdesk</string>|<string>com.npuntocero.npcpuestoremoto</string>|' flutter/macos/Runner/Info.plist
           sed -i '' 's|<string>rustdesk</string>|<string>npcpuestoremoto</string>|' flutter/macos/Runner/Info.plist
+          sed -i '' 's|BUILTIN_SETTINGS: RwLock<HashMap<String, String>> = Default::default();|BUILTIN_SETTINGS: RwLock<HashMap<String, String>> = RwLock::new(HashMap::from([("hide-powered-by-me".to_owned(), "Y".to_owned())]));|' libs/hbb_common/src/config.rs
           echo "Branding NPC-PuestoRemoto aplicado (macOS)."
 
       - name: Import the codesign cert
