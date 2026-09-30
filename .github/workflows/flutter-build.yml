@@ -156,6 +156,12 @@ jobs:
           sed -i 's|ProductName = "RustDesk"|ProductName = "NPC-PuestoRemoto Agent"|' libs/portable/Cargo.toml
           sed -i 's|FileDescription = "RustDesk Remote Desktop"|FileDescription = "NPC-PuestoRemoto Agent"|' libs/portable/Cargo.toml
           sed -i 's|OriginalFilename = "rustdesk.exe"|OriginalFilename = "npcpuestoremoto.exe"|' libs/portable/Cargo.toml
+          sed -i 's|winapi::um::winnt::LANG_ENGLISH,|winapi::um::winnt::LANG_SPANISH,|' build.rs
+          sed -i 's|winapi::um::winnt::SUBLANG_ENGLISH_US,|winapi::um::winnt::SUBLANG_SPANISH_MODERN,|' build.rs
+          sed -i 's|if (!isIncomingOnly) setupServerWidget(),|if (!isIncomingOnly \&\& !bind.isCustomClient()) setupServerWidget(),|' flutter/lib/desktop/pages/connection_page.dart
+          sed -i 's|^                          InkWell($|                          if (!bind.isCustomClient()) InkWell(|' flutter/lib/desktop/pages/install_page.dart
+          perl -0777 -pi -e 's/\{copy_exe\}\nreg add \{subkey\} \/f/\{copy_exe\}\n\{rename_exe\}\nreg add \{subkey\} \/f/' src/platform/windows.rs
+          perl -0777 -pi -e 's/copy_exe = copy_exe_cmd\(&src_exe, &exe, &path\)\?,\n(\s*)import_config = get_import_config\(&exe\),/copy_exe = copy_exe_cmd(&src_exe, &exe, &path)?,\n$1rename_exe = rename_exe_cmd(&src_exe, &path)?,\n$1import_config = get_import_config(&exe),/' src/platform/windows.rs
           echo "Branding NPC-PuestoRemoto aplicado (Windows)."
 
       - name: Restore bridge files
@@ -801,6 +807,8 @@ jobs:
           sed -i '' 's|<string>com.carriez.rustdesk</string>|<string>com.npuntocero.npcpuestoremoto</string>|' flutter/macos/Runner/Info.plist
           sed -i '' 's|<string>rustdesk</string>|<string>npcpuestoremoto</string>|' flutter/macos/Runner/Info.plist
           sed -i '' 's|BUILTIN_SETTINGS: RwLock<HashMap<String, String>> = Default::default();|BUILTIN_SETTINGS: RwLock<HashMap<String, String>> = RwLock::new(HashMap::from([("hide-powered-by-me".to_owned(), "Y".to_owned())]));|' libs/hbb_common/src/config.rs
+          sed -i '' 's|if (!isIncomingOnly) setupServerWidget(),|if (!isIncomingOnly \&\& !bind.isCustomClient()) setupServerWidget(),|' flutter/lib/desktop/pages/connection_page.dart
+          sed -i '' 's|^                          InkWell($|                          if (!bind.isCustomClient()) InkWell(|' flutter/lib/desktop/pages/install_page.dart
           echo "Branding NPC-PuestoRemoto aplicado (macOS)."
 
       - name: Import the codesign cert
