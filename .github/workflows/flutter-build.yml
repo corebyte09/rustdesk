@@ -166,7 +166,15 @@ jobs:
           python3 -c 'import pathlib; p = pathlib.Path('"'"'src/platform/windows.rs'"'"'); s = p.read_text(); old = '"'"'#[inline]\npub fn remove_meta_toml_cmd('"'"'; new = '"'"'#[inline]\npub fn npc_install_rename_exe_cmd(path: &str) -> String {\n    let app_name = crate::get_app_name();\n    format!(\n        "\n        if exist \\"{path}\\\\rustdesk.exe\\" if not exist \\"{path}\\\\{app_name}.exe\\" (\n            ping -n 3 127.0.0.1 > nul\n            move /Y \\"{path}\\\\rustdesk.exe\\" \\"{path}\\\\{app_name}.exe\\"\n        )\n        ",\n    )\n}\n\n#[inline]\npub fn remove_meta_toml_cmd('"'"'; assert s.count(old) == 1, s.count(old); p.write_text(s.replace(old, new))'
           sed -i 's|run_cmds(cmds, debug, "install")?;|let _ = std::fs::write(std::env::temp_dir().join("npc_install_debug.log"), format!("src_exe={}\\napp_name={}\\n\\n{}", src_exe, crate::get_app_name(), cmds));\n    run_cmds(cmds, debug, "install")?;|' src/platform/windows.rs
           echo "Branding NPC-PuestoRemoto aplicado (Windows)."
-
+      - name: Verificar parche de renombrado
+        shell: bash
+        run: |
+          echo "--- Buscando la función nueva ---"
+          grep -n -A 8 "pub fn npc_install_rename_exe_cmd" src/platform/windows.rs || echo "FUNCION NO ENCONTRADA"
+          echo "--- Buscando dónde se usa dentro de install_me ---"
+          grep -n -B 2 -A 2 "rename_exe = npc_install_rename_exe_cmd" src/platform/windows.rs || echo "LLAMADA NO ENCONTRADA"
+          echo "--- Buscando el placeholder en la plantilla ---"
+          grep -n "{rename_exe}" src/platform/windows.rs || echo "PLACEHOLDER NO ENCONTRADO"
       - name: Restore bridge files
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
