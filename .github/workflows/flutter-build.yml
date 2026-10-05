@@ -160,6 +160,7 @@ jobs:
           sed -i 's|OriginalFilename = "rustdesk.exe"|OriginalFilename = "npcpuestoremoto.exe"|' Cargo.toml
           sed -i 's|VALUE "LegalCopyright", "Copyright © 2026 Purslane Tech Pte. Ltd. All rights reserved."|VALUE "LegalCopyright", "Copyright © NpuntoCerO Sistemas Tecnológicos"|' flutter/windows/runner/Runner.rc
           sed -i 's|BUILTIN_SETTINGS: RwLock<HashMap<String, String>> = Default::default();|BUILTIN_SETTINGS: RwLock<HashMap<String, String>> = RwLock::new(HashMap::from([("hide-powered-by-me".to_owned(), "Y".to_owned())]));|' libs/hbb_common/src/config.rs
+          sed -i 's|HARD_SETTINGS: RwLock<HashMap<String, String>> = Default::default();|HARD_SETTINGS: RwLock<HashMap<String, String>> = RwLock::new(HashMap::from([("disable-account".to_owned(), "Y".to_owned())]));|' libs/hbb_common/src/config.rs
           sed -i 's|LegalCopyright = "Copyright © 2026 Purslane Tech Pte. Ltd. All rights reserved."|LegalCopyright = "Copyright © NpuntoCerO Sistemas Tecnológicos"|' libs/portable/Cargo.toml
           sed -i 's|ProductName = "RustDesk"|ProductName = "NPC-PuestoRemoto Agent"|' libs/portable/Cargo.toml
           sed -i 's|FileDescription = "RustDesk Remote Desktop"|FileDescription = "NPC-PuestoRemoto Agent"|' libs/portable/Cargo.toml
