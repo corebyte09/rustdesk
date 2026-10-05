@@ -103,7 +103,7 @@ jobs:
       target_version: Windows10
 
   build-for-windows-flutter:
-    name: ${{ matrix.job.target }}
+    name: ${{ matrix.job.target }} (${{ matrix.variant.name }})
     needs: [build-RustDeskTempTopMostWindow, generate-bridge]
     runs-on: ${{ matrix.job.os }}
     strategy:
@@ -120,6 +120,11 @@ jobs:
               vcpkg-triplet: x64-windows-static,
               build-args: "--vram",
             }
+        variant:
+          # "soporte": build normal, para los equipos de los técnicos (puede iniciar y recibir conexiones).
+          # "cliente": build que solo puede recibir conexiones, para instalar en los equipos de los clientes.
+          - { name: soporte, suffix: "", conn-type: "" }
+          - { name: cliente, suffix: "-cliente", conn-type: "incoming" }
     steps:
       - name: Export GitHub Actions cache environment variables
         uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410 # v6
@@ -169,6 +174,8 @@ jobs:
           python3 -c 'import pathlib; p = pathlib.Path('"'"'src/platform/windows.rs'"'"'); s = p.read_text(); old = '"'"'        move /Y \\"{path}\\\\{src_exe_filename}\\" \\"{path}\\\\{app_name}.exe\\"\n        ",\n        ))'"'"'; new = '"'"'        ping -n 3 127.0.0.1 > nul\n        move /Y \\"{path}\\\\{src_exe_filename}\\" \\"{path}\\\\{app_name}.exe\\"\n        if not exist \\"{path}\\\\{app_name}.exe\\" (\n            ping -n 3 127.0.0.1 > nul\n            move /Y \\"{path}\\\\{src_exe_filename}\\" \\"{path}\\\\{app_name}.exe\\"\n        )\n        ",\n        ))'"'"'; assert s.count(old) == 1, s.count(old); p.write_text(s.replace(old, new))'
           python3 -c 'import pathlib; p = pathlib.Path('"'"'src/platform/windows.rs'"'"'); s = p.read_text(); old = '"'"'#[inline]\npub fn remove_meta_toml_cmd('"'"'; new = '"'"'#[inline]\npub fn npc_install_rename_exe_cmd(path: &str) -> String {\n    let app_name = crate::get_app_name();\n    format!(\n        "\n        if exist \\"{path}\\\\rustdesk.exe\\" if not exist \\"{path}\\\\{app_name}.exe\\" (\n            ping -n 3 127.0.0.1 > nul\n            move /Y \\"{path}\\\\rustdesk.exe\\" \\"{path}\\\\{app_name}.exe\\"\n        )\n        ",\n    )\n}\n\n#[inline]\npub fn remove_meta_toml_cmd('"'"'; assert s.count(old) == 1, s.count(old); p.write_text(s.replace(old, new))'
           sed -i 's|run_cmds(cmds, debug, "install")?;|let _ = std::fs::write(std::env::temp_dir().join("npc_install_debug.log"), format!("src_exe={}\\napp_name={}\\n\\n{}", src_exe, crate::get_app_name(), cmds));\n    run_cmds(cmds, debug, "install")?;|' src/platform/windows.rs
+          python3 -c 'import pathlib; p = pathlib.Path("src/common.rs"); s = p.read_text(); old = "pub fn load_custom_client() {\n    #[cfg(debug_assertions)]"; new = "pub fn load_custom_client() {\n    if let Some(v) = option_env!(\"NPC_CONN_TYPE\") {\n        if !v.is_empty() {\n            config::HARD_SETTINGS\n                .write()\n                .unwrap()\n                .insert(\"conn-type\".to_owned(), v.to_owned());\n        }\n    }\n    #[cfg(debug_assertions)]"; assert s.count(old) == 1, s.count(old); p.write_text(s.replace(old, new, 1))'
+          python3 -c 'import pathlib; p = pathlib.Path("build.rs"); s = p.read_text(); old = "    cc::Build::new().file(file).file(file2).compile(\"windows\");\n    println!(\"cargo:rustc-link-lib=WtsApi32\");"; new = "    cc::Build::new().file(file).file(file2).compile(\"windows\");\n    println!(\"cargo:rustc-link-lib=WtsApi32\");\n    println!(\"cargo:rerun-if-env-changed=NPC_CONN_TYPE\");"; assert s.count(old) == 1, s.count(old); p.write_text(s.replace(old, new, 1))'
           echo "Branding NPC-PuestoRemoto aplicado (Windows)."
 
       - name: Restore bridge files
@@ -270,7 +277,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
         with:
-          prefix-key: ${{ matrix.job.os }}
+          prefix-key: ${{ matrix.job.os }}-${{ matrix.variant.name }}
 
       - name: Setup vcpkg with Github Actions binary cache
         uses: lukka/run-vcpkg@b1a0dd252f06b9e25b3c022a9a03bd7a427fb6a2 # v11
@@ -307,6 +314,8 @@ jobs:
         run: echo "SODIUM_LIB_DIR=$VCPKG_ROOT/installed/${{ matrix.job.vcpkg-triplet }}/lib" >> "$GITHUB_ENV"
 
       - name: Build rustdesk
+        env:
+          NPC_CONN_TYPE: ${{ matrix.variant.conn-type }}
         run: |
           # Windows: build RustDesk
           # --hwcodec is shared by all Windows targets; per-target extras (e.g. --vram) come from the matrix
@@ -374,7 +383,7 @@ jobs:
         if: env.UPLOAD_ARTIFACT == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: rustdesk-unsigned-windows-${{ matrix.job.arch }}
+          name: rustdesk-unsigned-windows-${{ matrix.job.arch }}${{ matrix.variant.suffix }}
           path: rustdesk
 
       - name: Sign rustdesk files
@@ -394,7 +403,7 @@ jobs:
           python3 ./generate.py -f ../../rustdesk/ -o . -e ../../rustdesk/rustdesk.exe
           popd
           mkdir -p ./SignOutput
-          mv ./target/release/rustdesk-portable-packer.exe ./SignOutput/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.exe
+          mv ./target/release/rustdesk-portable-packer.exe ./SignOutput/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.variant.suffix }}.exe
 
       - name: Add MSBuild to PATH
         uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # v2
@@ -417,7 +426,7 @@ jobs:
           $msiPlatform = if ('${{ matrix.job.arch }}' -eq 'aarch64') { 'ARM64' } else { 'x64' }
           msbuild msi.sln -p:Configuration=Release -p:Platform=$msiPlatform /p:TargetVersion=Windows10
           $msi = Get-ChildItem ./Package/bin/*/Release/en-us/Package.msi | Select-Object -First 1
-          mv $msi.FullName ../../SignOutput/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.msi
+          mv $msi.FullName ../../SignOutput/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.variant.suffix }}.msi
           sha256sum ../../SignOutput/rustdesk-*.msi
 
       - name: Build pre-built MSI template
@@ -457,7 +466,7 @@ jobs:
           $msi = Get-ChildItem ./Package/bin/*/Release/en-us/Package.msi | Select-Object -First 1
           popd
           mkdir ./msi-template
-          mv $msi.FullName ./msi-template/rustdesk-template-${{ matrix.job.arch }}.msi
+          mv $msi.FullName ./msi-template/rustdesk-template-${{ matrix.job.arch }}${{ matrix.variant.suffix }}.msi
           git checkout -- res/msi
           rm -r -fo ./rustdesk-msi-template
 
@@ -465,7 +474,7 @@ jobs:
         if: env.UPLOAD_ARTIFACT == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: rustdesk-unsigned-msi-template-${{ matrix.job.arch }}
+          name: rustdesk-unsigned-msi-template-${{ matrix.job.arch }}${{ matrix.variant.suffix }}
           path: ./msi-template
 
       - name: Sign rustdesk self-extracted file
