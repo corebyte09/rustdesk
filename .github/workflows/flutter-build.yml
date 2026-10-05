@@ -150,6 +150,9 @@ jobs:
           sed -i 's|VALUE "OriginalFilename", "rustdesk.exe"|VALUE "OriginalFilename", "npcpuestoremoto.exe"|' flutter/windows/runner/Runner.rc
           sed -i 's|VALUE "ProductName", "RustDesk"|VALUE "ProductName", "NPC-PuestoRemoto Agent"|' flutter/windows/runner/Runner.rc
           sed -i 's|LegalCopyright = "Copyright © 2026 Purslane Tech Pte. Ltd. All rights reserved."|LegalCopyright = "Copyright © NpuntoCerO Sistemas Tecnológicos"|' Cargo.toml
+          sed -i 's|ProductName = "RustDesk"|ProductName = "NPC-PuestoRemoto Agent"|' Cargo.toml
+          sed -i 's|FileDescription = "RustDesk Remote Desktop"|FileDescription = "NPC-PuestoRemoto Agent"|' Cargo.toml
+          sed -i 's|OriginalFilename = "rustdesk.exe"|OriginalFilename = "npcpuestoremoto.exe"|' Cargo.toml
           sed -i 's|VALUE "LegalCopyright", "Copyright © 2026 Purslane Tech Pte. Ltd. All rights reserved."|VALUE "LegalCopyright", "Copyright © NpuntoCerO Sistemas Tecnológicos"|' flutter/windows/runner/Runner.rc
           sed -i 's|BUILTIN_SETTINGS: RwLock<HashMap<String, String>> = Default::default();|BUILTIN_SETTINGS: RwLock<HashMap<String, String>> = RwLock::new(HashMap::from([("hide-powered-by-me".to_owned(), "Y".to_owned())]));|' libs/hbb_common/src/config.rs
           sed -i 's|LegalCopyright = "Copyright © 2026 Purslane Tech Pte. Ltd. All rights reserved."|LegalCopyright = "Copyright © NpuntoCerO Sistemas Tecnológicos"|' libs/portable/Cargo.toml
