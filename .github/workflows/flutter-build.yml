@@ -399,10 +399,17 @@ jobs:
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
           sed -i '/dpiAware/d' res/manifest.xml
+          # app_dir_name() in libs/portable/src/main.rs names the extraction folder (and the
+          # temp copy it elevates, e.g. for UAC prompts) after whatever file -e points at, so
+          # the embedded exe is renamed just for packing and restored right after, keeping the
+          # "Build msi" / "Build pre-built MSI template" steps below untouched (they still
+          # expect rustdesk.exe in ./rustdesk).
+          mv ./rustdesk/rustdesk.exe ./rustdesk/npcpuestoremoto.exe
           pushd ./libs/portable
           pip3 install -r requirements.txt
-          python3 ./generate.py -f ../../rustdesk/ -o . -e ../../rustdesk/rustdesk.exe
+          python3 ./generate.py -f ../../rustdesk/ -o . -e ../../rustdesk/npcpuestoremoto.exe
           popd
+          mv ./rustdesk/npcpuestoremoto.exe ./rustdesk/rustdesk.exe
           mkdir -p ./SignOutput
           mv ./target/release/rustdesk-portable-packer.exe ./SignOutput/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.variant.suffix }}.exe
 
