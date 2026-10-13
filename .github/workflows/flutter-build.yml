@@ -142,7 +142,7 @@ jobs:
         shell: bash
         run: |
           set -e
-          sed -i 's|RENDEZVOUS_SERVERS: \&\[\&str\] = \&\["rs-ny.rustdesk.com"\]|RENDEZVOUS_SERVERS: \&[\&str] = \&["npc-puestoremoto2.npuntocero.com"]|' libs/hbb_common/src/config.rs
+          sed -i 's|RENDEZVOUS_SERVERS: \&\[\&str\] = \&\["rs-ny.rustdesk.com"\]|RENDEZVOUS_SERVERS: \&[\&str] = \&["npc-puestoremoto.npuntocero.com"]|' libs/hbb_common/src/config.rs
           sed -i 's|RS_PUB_KEY: \&str = "OeVuKk5nlHiXp+APNn0Y3pC1Iwpwn44JGqrQCsWqmBw="|RS_PUB_KEY: \&str = "WJAJ37v1NkWpYmPhFw4ndItAIGwbt9WFmjYewI6F3P8="|' libs/hbb_common/src/config.rs
           sed -i 's|RwLock::new("RustDesk".to_owned())|RwLock::new("NPCPuestoRemoto".to_owned())|' libs/hbb_common/src/config.rs
           sed -i 's|RwLock::new("com.carriez".to_owned())|RwLock::new("com.npuntocero".to_owned())|' libs/hbb_common/src/config.rs
