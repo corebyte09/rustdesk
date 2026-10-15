@@ -121,10 +121,13 @@ jobs:
               build-args: "--vram",
             }
         variant:
-          # "soporte": build normal, para los equipos de los técnicos (puede iniciar y recibir conexiones).
-          # "cliente": build que solo puede recibir conexiones, para instalar en los equipos de los clientes.
-          - { name: soporte, suffix: "", conn-type: "" }
-          - { name: cliente, suffix: "-cliente", conn-type: "incoming" }
+          # "soporte": build normal, para los equipos de los técnicos (puede iniciar y recibir conexiones,
+          #            con la caja de "Controlar escritorio remoto" visible).
+          # "cliente": build para instalar en CUALQUIER PC de cliente, sea el que normalmente se controla
+          #            o el que normalmente conecta -- oculta esa caja (nadie teclea un ID a mano), pero
+          #            SÍ puede iniciar y recibir conexiones a través del enlace que genera el portal.
+          - { name: soporte, suffix: "", conn-type: "", hide-outgoing-ui: "" }
+          - { name: cliente, suffix: "-cliente", conn-type: "", hide-outgoing-ui: "Y" }
     steps:
       - name: Export GitHub Actions cache environment variables
         uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410 # v6
@@ -175,8 +178,9 @@ jobs:
           python3 -c 'import pathlib; p = pathlib.Path('"'"'src/platform/windows.rs'"'"'); s = p.read_text(); old = '"'"'        move /Y \\"{path}\\\\{src_exe_filename}\\" \\"{path}\\\\{app_name}.exe\\"\n        ",\n        ))'"'"'; new = '"'"'        ping -n 3 127.0.0.1 > nul\n        move /Y \\"{path}\\\\{src_exe_filename}\\" \\"{path}\\\\{app_name}.exe\\"\n        if not exist \\"{path}\\\\{app_name}.exe\\" (\n            ping -n 3 127.0.0.1 > nul\n            move /Y \\"{path}\\\\{src_exe_filename}\\" \\"{path}\\\\{app_name}.exe\\"\n        )\n        ",\n        ))'"'"'; assert s.count(old) == 1, s.count(old); p.write_text(s.replace(old, new))'
           python3 -c 'import pathlib; p = pathlib.Path('"'"'src/platform/windows.rs'"'"'); s = p.read_text(); old = '"'"'#[inline]\npub fn remove_meta_toml_cmd('"'"'; new = '"'"'#[inline]\npub fn npc_install_rename_exe_cmd(path: &str) -> String {\n    let app_name = crate::get_app_name();\n    format!(\n        "\n        if exist \\"{path}\\\\rustdesk.exe\\" if not exist \\"{path}\\\\{app_name}.exe\\" (\n            ping -n 3 127.0.0.1 > nul\n            move /Y \\"{path}\\\\rustdesk.exe\\" \\"{path}\\\\{app_name}.exe\\"\n        )\n        ",\n    )\n}\n\n#[inline]\npub fn remove_meta_toml_cmd('"'"'; assert s.count(old) == 1, s.count(old); p.write_text(s.replace(old, new))'
           sed -i 's|run_cmds(cmds, debug, "install")?;|let _ = std::fs::write(std::env::temp_dir().join("npc_install_debug.log"), format!("src_exe={}\\napp_name={}\\n\\n{}", src_exe, crate::get_app_name(), cmds));\n    run_cmds(cmds, debug, "install")?;|' src/platform/windows.rs
-          python3 -c 'import pathlib; p = pathlib.Path("src/common.rs"); s = p.read_text(); old = "pub fn load_custom_client() {\n    #[cfg(debug_assertions)]"; new = "pub fn load_custom_client() {\n    if let Some(v) = option_env!(\"NPC_CONN_TYPE\") {\n        if !v.is_empty() {\n            config::HARD_SETTINGS\n                .write()\n                .unwrap()\n                .insert(\"conn-type\".to_owned(), v.to_owned());\n        }\n    }\n    #[cfg(debug_assertions)]"; assert s.count(old) == 1, s.count(old); p.write_text(s.replace(old, new, 1))'
-          python3 -c 'import pathlib; p = pathlib.Path("build.rs"); s = p.read_text(); old = "    cc::Build::new().file(file).file(file2).compile(\"windows\");\n    println!(\"cargo:rustc-link-lib=WtsApi32\");"; new = "    cc::Build::new().file(file).file(file2).compile(\"windows\");\n    println!(\"cargo:rustc-link-lib=WtsApi32\");\n    println!(\"cargo:rerun-if-env-changed=NPC_CONN_TYPE\");"; assert s.count(old) == 1, s.count(old); p.write_text(s.replace(old, new, 1))'
+          python3 -c 'import pathlib; p = pathlib.Path("src/common.rs"); s = p.read_text(); old = "pub fn load_custom_client() {\n    #[cfg(debug_assertions)]"; new = "pub fn load_custom_client() {\n    if let Some(v) = option_env!(\"NPC_CONN_TYPE\") {\n        if !v.is_empty() {\n            config::HARD_SETTINGS\n                .write()\n                .unwrap()\n                .insert(\"conn-type\".to_owned(), v.to_owned());\n        }\n    }\n    if let Some(v) = option_env!(\"NPC_HIDE_OUTGOING_UI\") {\n        if !v.is_empty() {\n            config::HARD_SETTINGS\n                .write()\n                .unwrap()\n                .insert(\"hide-outgoing-ui\".to_owned(), v.to_owned());\n        }\n    }\n    #[cfg(debug_assertions)]"; assert s.count(old) == 1, s.count(old); p.write_text(s.replace(old, new, 1))'
+          python3 -c 'import pathlib; p = pathlib.Path("build.rs"); s = p.read_text(); old = "    cc::Build::new().file(file).file(file2).compile(\"windows\");\n    println!(\"cargo:rustc-link-lib=WtsApi32\");"; new = "    cc::Build::new().file(file).file(file2).compile(\"windows\");\n    println!(\"cargo:rustc-link-lib=WtsApi32\");\n    println!(\"cargo:rerun-if-env-changed=NPC_CONN_TYPE\");\n    println!(\"cargo:rerun-if-env-changed=NPC_HIDE_OUTGOING_UI\");"; assert s.count(old) == 1, s.count(old); p.write_text(s.replace(old, new, 1))'
+          python3 -c 'import pathlib; p = pathlib.Path("flutter/lib/desktop/pages/desktop_home_page.dart"); s = p.read_text(encoding="utf-8"); old = "final isIncomingOnly = bind.isIncomingOnly();\n    return _buildBlock("; new = "final isIncomingOnly = bind.isIncomingOnly();\n    final npcHideOutgoingPane = isIncomingOnly || bind.mainGetHardOption(key: \"hide-outgoing-ui\") == \"Y\";\n    return _buildBlock("; assert s.count(old) == 1, s.count(old); s = s.replace(old, new, 1); old2 = "if (!isIncomingOnly) const VerticalDivider(width: 1),"; assert s.count(old2) == 1, s.count(old2); s = s.replace(old2, "if (!npcHideOutgoingPane) const VerticalDivider(width: 1),", 1); old3 = "if (!isIncomingOnly) Expanded(child: buildRightPane(context)),"; assert s.count(old3) == 1, s.count(old3); s = s.replace(old3, "if (!npcHideOutgoingPane) Expanded(child: buildRightPane(context)),", 1); p.write_text(s, encoding="utf-8")'
           echo "Branding NPC-PuestoRemoto aplicado (Windows)."
 
       - name: Restore bridge files
@@ -317,6 +321,7 @@ jobs:
       - name: Build rustdesk
         env:
           NPC_CONN_TYPE: ${{ matrix.variant.conn-type }}
+          NPC_HIDE_OUTGOING_UI: ${{ matrix.variant.hide-outgoing-ui }}
         run: |
           # Windows: build RustDesk
           # --hwcodec is shared by all Windows targets; per-target extras (e.g. --vram) come from the matrix
