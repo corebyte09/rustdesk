@@ -187,6 +187,7 @@ def patch_flutter_text(repo: Path, cfg):
         "Ajustes/About: quitar fecha de compilacion y huella digital")
     # Quita la pestana "Chat" de la barra inferior (se mantiene Conexion, Compartir pantalla y Ajustes).
     hp = repo / "flutter/lib/mobile/pages/home_page.dart"
+    rp = repo / "flutter/lib/mobile/pages/remote_page.dart"
     replace_exact(
         hp,
         "      _chatPageTabIndex = _pages.length;\n"
@@ -210,8 +211,20 @@ def patch_flutter_text(repo: Path, cfg):
         "          child: PeerTabPage(),\n",
         "          child: SizedBox.shrink(), // NPC: sin pestanas de recientes/favoritos\n",
         "Conexion: quitar lista de equipos")
+    # Sin pestana "Conexion": la app abre en "Compartir pantalla" (ID y clave propios) y Ajustes.
+    replace_exact(
+        hp,
+        "    if (!bind.isIncomingOnly()) {\n      _pages.add(ConnectionPage(\n        appBarActions: [],\n      ));\n    }\n",
+        "    if (false) { // NPC: sin pestana Conexion (se conecta desde el portal)\n      _pages.add(ConnectionPage(\n        appBarActions: [],\n      ));\n    }\n",
+        "Barra inferior: quitar pestana Conexion")
+    # Al terminar una sesion saliente la app se cierra y se vuelve al navegador/portal.
+    replace_exact(
+        rp,
+        '    gFFI.chatModel.onVoiceCallClosed("End connection");\n  }\n',
+        '    gFFI.chatModel.onVoiceCallClosed("End connection");\n'
+        '    await SystemNavigator.pop(); // NPC: cerrar la app al terminar la sesion\n  }\n',
+        "Sesion: cerrar la app al terminar")
     # Sin historial: al cerrar una sesion saliente se borra el PC de la lista de "Recientes".
-    rp = repo / "flutter/lib/mobile/pages/remote_page.dart"
     replace_exact(
         rp,
         "    await gFFI.close();\n    _timer?.cancel();\n",
