@@ -153,6 +153,13 @@ def patch_flutter_text(repo: Path, cfg):
     replace_exact(sp, "Text('rustdesk.com',", f"Text('{web}',", "Ajustes/About: texto del enlace", expected=2)
     replace_exact(sp, "const url = 'https://rustdesk.com/';", f"const url = 'https://{web}/';",
                   "Ajustes/About: URL", expected=2)
+    # Sin historial: al cerrar una sesion saliente se borra el PC de la lista de "Recientes".
+    rp = repo / "flutter/lib/mobile/pages/remote_page.dart"
+    replace_exact(
+        rp,
+        "    await gFFI.close();\n    _timer?.cancel();\n",
+        "    await gFFI.close();\n    await bind.mainRemovePeer(id: widget.id); // NPC: sin historial de conexiones\n    _timer?.cancel();\n",
+        "Recientes: borrar el PC al terminar la sesion")
 
 
 # ----------------------------------------------------------------------------
