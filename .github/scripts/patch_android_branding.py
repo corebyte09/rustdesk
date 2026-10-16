@@ -137,8 +137,8 @@ def patch_rust(repo: Path, cfg):
     replace_exact(
         p,
         'BUILTIN_SETTINGS: RwLock<HashMap<String, String>> = Default::default();',
-        'BUILTIN_SETTINGS: RwLock<HashMap<String, String>> = RwLock::new(HashMap::from([("hide-powered-by-me".to_owned(), "Y".to_owned())]));',
-        "BUILTIN_SETTINGS (ocultar 'powered by')")
+        'BUILTIN_SETTINGS: RwLock<HashMap<String, String>> = RwLock::new(HashMap::from([("hide-powered-by-me".to_owned(), "Y".to_owned()), ("hide-server-settings".to_owned(), "Y".to_owned()), ("hide-proxy-settings".to_owned(), "Y".to_owned()), ("hide-network-settings".to_owned(), "Y".to_owned()), ("hide-websocket-settings".to_owned(), "Y".to_owned())]));',
+        "BUILTIN_SETTINGS (ocultar 'powered by', servidor, proxy y red)")
     replace_exact(
         p,
         'HARD_SETTINGS: RwLock<HashMap<String, String>> = Default::default();',
@@ -153,6 +153,63 @@ def patch_flutter_text(repo: Path, cfg):
     replace_exact(sp, "Text('rustdesk.com',", f"Text('{web}',", "Ajustes/About: texto del enlace", expected=2)
     replace_exact(sp, "const url = 'https://rustdesk.com/';", f"const url = 'https://{web}/';",
                   "Ajustes/About: URL", expected=2)
+    # Quita "Declaracion de privacidad" (enlaza a rustdesk.com) de Ajustes > Acerca de.
+    replace_exact(
+        sp,
+        "\n            SettingsTile(\n"
+        "              title: Text(translate(\"Privacy Statement\")),\n"
+        "              onPressed: (context) =>\n"
+        "                  launchUrlString('https://rustdesk.com/privacy.html'),\n"
+        "              leading: Icon(Icons.privacy_tip),\n"
+        "            )",
+        "\n            // NPC: sin declaracion de privacidad de RustDesk",
+        "Ajustes/About: quitar Declaracion de privacidad")
+    # Quita "Fecha de compilacion" y "Huella digital" de Ajustes > Acerca de.
+    replace_exact(
+        sp,
+        "            SettingsTile(\n"
+        "                title: Text(translate(\"Build Date\")),\n"
+        "                value: Padding(\n"
+        "                  padding: EdgeInsets.symmetric(vertical: 8),\n"
+        "                  child: Text(_buildDate),\n"
+        "                ),\n"
+        "                leading: Icon(Icons.query_builder)),\n"
+        "            if (isAndroid)\n"
+        "              SettingsTile(\n"
+        "                  onPressed: (context) => onCopyFingerprint(_fingerprint),\n"
+        "                  title: Text(translate(\"Fingerprint\")),\n"
+        "                  value: Padding(\n"
+        "                    padding: EdgeInsets.symmetric(vertical: 8),\n"
+        "                    child: Text(_fingerprint),\n"
+        "                  ),\n"
+        "                  leading: Icon(Icons.fingerprint)),\n",
+        "            // NPC: sin fecha de compilacion ni huella digital\n",
+        "Ajustes/About: quitar fecha de compilacion y huella digital")
+    # Quita la pestana "Chat" de la barra inferior (se mantiene Conexion, Compartir pantalla y Ajustes).
+    hp = repo / "flutter/lib/mobile/pages/home_page.dart"
+    replace_exact(
+        hp,
+        "      _chatPageTabIndex = _pages.length;\n"
+        "      _pages.addAll([ChatPage(type: ChatPageType.mobileMain), ServerPage()]);\n",
+        "      _chatPageTabIndex = -1; // NPC: sin pestana de chat\n"
+        "      _pages.addAll([ServerPage()]);\n",
+        "Barra inferior: quitar pestana Chat")
+    # Quita el ajuste "Implementar" (Deploy, funcion de RustDesk Pro).
+    replace_exact(
+        sp,
+        "          if (isAndroid && !bind.isOutgoingOnly())\n"
+        "            SettingsTile(\n"
+        "                title: Text(translate('Deploy')),",
+        "          if (false) // NPC: sin Deploy\n"
+        "            SettingsTile(\n"
+        "                title: Text(translate('Deploy')),",
+        "Ajustes: quitar Implementar (Deploy)")
+    # Pantalla Conexion reducida: solo el campo de ID, sin pestanas de recientes/favoritos/etc.
+    replace_exact(
+        repo / "flutter/lib/mobile/pages/connection_page.dart",
+        "          child: PeerTabPage(),\n",
+        "          child: SizedBox.shrink(), // NPC: sin pestanas de recientes/favoritos\n",
+        "Conexion: quitar lista de equipos")
     # Sin historial: al cerrar una sesion saliente se borra el PC de la lista de "Recientes".
     rp = repo / "flutter/lib/mobile/pages/remote_page.dart"
     replace_exact(
