@@ -88,6 +88,7 @@ def load_config():
         "server": env("NPC_SERVER", required=True),
         "key": env("NPC_RS_PUB_KEY", required=True),
         "app_id": env("NPC_APP_ID", "com.npuntocero.puestoremoto"),
+        "web": env("NPC_WEB", "npuntocero.es"),
         "icon_bg": env("NPC_ICON_BG"),  # None -> se deduce del icono (o blanco)
         "icon_fit": float(env("NPC_ICON_FIT", "0.50")),
     }
@@ -100,6 +101,7 @@ def load_config():
         ("NPC_RS_PUB_KEY", cfg["key"], r"[A-Za-z0-9+/]{43}="),
         ("NPC_APP_ID", cfg["app_id"], r"[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+"),
         ("NPC_URI_SCHEME", cfg["scheme"], r"[a-z][a-z0-9+.-]*"),
+        ("NPC_WEB", cfg["web"], r"[A-Za-z0-9.-]+"),
     ]
     if cfg["icon_bg"] is not None:
         checks.append(("NPC_ICON_BG", cfg["icon_bg"], r"#[0-9A-Fa-f]{6}"))
@@ -131,6 +133,26 @@ def patch_rust(repo: Path, cfg):
             cfg["server"], "RENDEZVOUS_SERVERS (respaldo)")
     sub_one(p, r'(pub const RS_PUB_KEY: &str = ")[^"]*(";)',
             cfg["key"], "RS_PUB_KEY (clave de fabrica)")
+    # Igual que en el parche de Windows: oculta "Con tecnologia de RustDesk" y la cuenta.
+    replace_exact(
+        p,
+        'BUILTIN_SETTINGS: RwLock<HashMap<String, String>> = Default::default();',
+        'BUILTIN_SETTINGS: RwLock<HashMap<String, String>> = RwLock::new(HashMap::from([("hide-powered-by-me".to_owned(), "Y".to_owned())]));',
+        "BUILTIN_SETTINGS (ocultar 'powered by')")
+    replace_exact(
+        p,
+        'HARD_SETTINGS: RwLock<HashMap<String, String>> = Default::default();',
+        'HARD_SETTINGS: RwLock<HashMap<String, String>> = RwLock::new(HashMap::from([("disable-account".to_owned(), "Y".to_owned())]));',
+        "HARD_SETTINGS (sin cuenta)")
+
+
+def patch_flutter_text(repo: Path, cfg):
+    print("[1b/3] Flutter movil (enlaces y textos de RustDesk)")
+    sp = repo / "flutter/lib/mobile/pages/settings_page.dart"
+    web = cfg["web"]
+    replace_exact(sp, "Text('rustdesk.com',", f"Text('{web}',", "Ajustes/About: texto del enlace", expected=2)
+    replace_exact(sp, "const url = 'https://rustdesk.com/';", f"const url = 'https://{web}/';",
+                  "Ajustes/About: URL", expected=2)
 
 
 # ----------------------------------------------------------------------------
@@ -321,6 +343,7 @@ def main():
     print(f"Marca: {cfg['display']} | APP_NAME={cfg['app_name']} | appId={cfg['app_id']} | "
           f"servidor={cfg['server']} | esquema={cfg['scheme']}://")
     patch_rust(repo, cfg)
+    patch_flutter_text(repo, cfg)
     patch_android_text(repo, cfg)
     patch_icons(repo, cfg)
     print("Parcheo completado")
