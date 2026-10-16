@@ -16,7 +16,8 @@ Configuracion por variables de entorno (las pone el job en el YAML):
   NPC_RS_PUB_KEY    Clave publica del servidor (id_ed25519.pub).
   NPC_APP_ID        applicationId de Android (identidad del paquete).
   NPC_URI_SCHEME    Esquema de enlace (por defecto: APP_NAME en minusculas, como hace RustDesk).
-  NPC_ICON          PNG/ICO cuadrado del icono (por defecto busca en branding/android/).
+  NPC_ICON          PNG/ICO cuadrado del icono (por defecto: branding/android/icono.* y, si no
+                    existe, res/icon.ico, el icono del cliente de Windows).
   NPC_LOGO_LIGHT    Logo (PNG) para tema claro  -> flutter/assets/logo_light.png  (opcional)
   NPC_LOGO_DARK     Logo (PNG) para tema oscuro -> flutter/assets/logo_dark.png   (opcional)
   NPC_ICON_BG       Color de fondo del icono adaptativo (por defecto #FFFFFF).
@@ -241,12 +242,15 @@ def patch_icons(repo: Path, cfg):
     if icon_path:
         icon_path = Path(icon_path) if Path(icon_path).is_absolute() else repo / icon_path
     else:
-        for cand in ("icono.png", "icono.ico", "npc-puesto-remoto-icono.ico"):
-            if (bd / cand).exists():
-                icon_path = bd / cand
+        # 1) un icono especifico para Android en branding/android/, si existe
+        # 2) el icono NPC que ya usa el cliente de Windows (res/icon.ico, 256 px)
+        for cand in (bd / "icono.png", bd / "icono.ico", bd / "npc-puesto-remoto-icono.ico",
+                     repo / "res/icon.ico"):
+            if cand.exists():
+                icon_path = cand
                 break
     if not icon_path or not Path(icon_path).exists():
-        die("No encuentro el icono. Sube branding/android/icono.png (o .ico) al fork "
+        die("No encuentro el icono. Pon branding/android/icono.png (o .ico) en el fork, "
             "o define NPC_ICON con su ruta.")
     print(f"  icono: {Path(icon_path).relative_to(repo) if str(icon_path).startswith(str(repo)) else icon_path}")
 
@@ -291,11 +295,9 @@ def patch_icons(repo: Path, cfg):
     sub_one(bgxml, r'(<color name="ic_launcher_background">)#[0-9A-Fa-f]{6,8}(</color>)',
             cfg["icon_bg"], "color de fondo del icono adaptativo")
 
-    # Recursos de Flutter: icono pequeno de la app y logos por tema (claro/oscuro).
+    # Recursos de Flutter: logos por tema (claro/oscuro). Opcionales. El fork ya trae
+    # flutter/assets/icon.png y logo.png propios, que no se tocan.
     assets = repo / "flutter/assets"
-    big = fit_into(icon, 512, 0.96)
-    big.save(assets / "icon.png")
-    print("  ok  flutter/assets/icon.png")
     for var, default, dest in (("NPC_LOGO_LIGHT", "logo-azul.png", "logo_light.png"),
                                ("NPC_LOGO_DARK", "logo-blanco.png", "logo_dark.png")):
         src = env(var)
@@ -304,7 +306,7 @@ def patch_icons(repo: Path, cfg):
             load_image(src).save(assets / dest)
             print(f"  ok  flutter/assets/{dest}")
         else:
-            print(f"  aviso: {src.name} no existe; se omite {dest} (la pantalla Ajustes no mostrara logo)")
+            print(f"  info: {src.name} no existe; se omite {dest} (Ajustes usara flutter/assets/logo.png)")
 
 
 # ----------------------------------------------------------------------------
