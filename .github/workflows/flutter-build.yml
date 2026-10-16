@@ -2692,3 +2692,272 @@ jobs:
           tag_name: ${{ env.TAG_NAME }}
           files: |
             flutter/build/rustdesk-${{ env.VERSION }}-${{ env.RELEASE_NAME }}.tar.gz
+
+  # ===========================================================================
+  # NPC-PuestoRemoto: APK de Android con marca propia
+  #
+  # Pegar este bloque dentro de `jobs:` de tu flutter-build.yml (mismo nivel que
+  # build-for-windows-flutter). Basado en `build-rustdesk-android` del repo oficial.
+  #
+  # Espera, a nivel de workflow (ya existen en el flutter-build.yml oficial):
+  #   RUST_VERSION, ANDROID_FLUTTER_VERSION, NDK_VERSION, CARGO_NDK_VERSION,
+  #   VCPKG_COMMIT_ID, VCPKG_BINARY_SOURCES  y el job `generate-bridge`.
+  #
+  # Secrets (opcionales pero MUY recomendados, ver LEEME-android.md):
+  #   NPC_ANDROID_KEYSTORE_B64, NPC_ANDROID_KEY_ALIAS,
+  #   NPC_ANDROID_KEYSTORE_PASSWORD, NPC_ANDROID_KEY_PASSWORD
+  # ===========================================================================
+  build-android:
+    name: build-android ${{ matrix.job.arch }}
+    needs: [generate-bridge]
+    runs-on: ubuntu-24.04
+    env:
+      # --- Marca y servidor "de fabrica" (cambia aqui, no en el script) ---
+      NPC_APP_NAME: "NPCPuestoRemoto"            # igual que APP_NAME en tu job de Windows
+      NPC_DISPLAY_NAME: "NPC-PuestoRemoto"       # nombre visible en el movil
+      NPC_SERVER: "npc-puestoremoto.npuntocero.com"
+      NPC_RS_PUB_KEY: "WJAJ37v1NkWpYmPhFw4ndItAIGwbt9WFmjYewI6F3P8="
+      NPC_APP_ID: "com.npuntocero.puestoremoto"  # identidad del paquete Android
+      NPC_URI_SCHEME: "npcpuestoremoto"          # = APP_NAME en minusculas
+    strategy:
+      fail-fast: false
+      matrix:
+        job:
+          # Casi todos los moviles/tablets actuales son aarch64. armv7 cubre tablets antiguas
+          # o con Android de 32 bits. Para emuladores/Chromebook anade x86_64 (ver LEEME).
+          - {
+              arch: aarch64,
+              target: aarch64-linux-android,
+              abi: arm64-v8a,
+              ndk_script: ndk_arm64.sh,
+              cxx_triple: aarch64-linux-android,
+              flutter_platform: android-arm64,
+            }
+          - {
+              arch: armv7,
+              target: armv7-linux-androideabi,
+              abi: armeabi-v7a,
+              ndk_script: ndk_arm.sh,
+              cxx_triple: arm-linux-androideabi,
+              flutter_platform: android-arm,
+            }
+    steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+        with:
+          tool-cache: false
+          android: false
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: true
+          swap-storage: false
+
+      - name: Export GitHub Actions cache environment variables
+        uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410 # v6
+        with:
+          script: |
+            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+
+      - name: Install dependencies (incluye JDK 17)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+               clang \
+               cmake \
+               curl \
+               gcc-multilib \
+               git \
+               g++ \
+               g++-multilib \
+               libayatana-appindicator3-dev \
+               libasound2-dev \
+               libc6-dev \
+               libclang-dev \
+               libunwind-dev \
+               libgstreamer1.0-dev \
+               libgstreamer-plugins-base1.0-dev \
+               libgtk-3-dev \
+               libpulse-dev \
+               libva-dev \
+               libxcb-randr0-dev \
+               libxcb-shape0-dev \
+               libxcb-xfixes0-dev \
+               libxdo-dev \
+               libxfixes-dev \
+               llvm-dev \
+               nasm \
+               ninja-build \
+               openjdk-17-jdk-headless \
+               pkg-config \
+               tree \
+               wget
+
+      - name: Checkout source code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          submodules: recursive
+
+      - name: Install flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          channel: "stable"
+          flutter-version: ${{ env.ANDROID_FLUTTER_VERSION }}
+
+      - name: Patch flutter
+        run: |
+          cd $(dirname $(dirname $(which flutter)))
+          if [[ "3.24.5" == ${{ env.ANDROID_FLUTTER_VERSION }} ]]; then
+            git apply ${{ github.workspace }}/.github/patches/flutter_3.24.4_dropdown_menu_enableFilter.diff
+          fi
+
+      - uses: nttld/setup-ndk@ed92fe6cadad69be94a966a7ee3271275e62f779 # v1
+        id: setup-ndk
+        with:
+          ndk-version: ${{ env.NDK_VERSION }}
+          add-to-path: true
+
+      - name: Setup vcpkg with Github Actions binary cache
+        uses: lukka/run-vcpkg@b1a0dd252f06b9e25b3c022a9a03bd7a427fb6a2 # v11
+        with:
+          vcpkgDirectory: /opt/artifacts/vcpkg
+          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT_ID }}
+          doNotCache: false
+
+      - name: Install vcpkg dependencies
+        shell: bash
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: |
+          if ! ./flutter/build_android_deps.sh "${{ matrix.job.abi }}"; then
+            find "${VCPKG_ROOT}/" -name "*.log" | while read -r _1; do
+              echo "$_1:"
+              echo "======"
+              cat "$_1"
+              echo "======"
+              echo ""
+            done
+            exit 1
+          fi
+
+      - name: Restore bridge files
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: bridge-artifact
+          path: ./
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          components: "rustfmt"
+
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+        with:
+          # Cache propia para no mezclarla con la del Windows/oficial
+          prefix-key: npc-android-lib-cache
+          key: ${{ matrix.job.target }}
+
+      # ---- Marca: nombre, icono, servidor y clave de fabrica ----------------
+      # Debe ir ANTES de compilar Rust (config.rs) y Flutter/Gradle (manifest, iconos).
+      - name: Patch branding NPC-PuestoRemoto (Android)
+        shell: bash
+        run: |
+          python3 -m pip install --break-system-packages pillow
+          python3 .github/scripts/patch_android_branding.py --repo "$GITHUB_WORKSPACE"
+
+      - name: Build rustdesk lib (Rust, ${{ matrix.job.target }})
+        shell: bash
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+          ANDROID_NDK_ROOT: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: |
+          rustup target add ${{ matrix.job.target }}
+          cargo install cargo-ndk --version ${{ env.CARGO_NDK_VERSION }} --locked
+          ./flutter/${{ matrix.job.ndk_script }}
+          JNI=./flutter/android/app/src/main/jniLibs/${{ matrix.job.abi }}
+          mkdir -p "$JNI"
+          cp ./target/${{ matrix.job.target }}/release/liblibrustdesk.so "$JNI/librustdesk.so"
+          cp "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/${{ matrix.job.cxx_triple }}/libc++_shared.so" "$JNI/"
+
+      # ---- Firma: con TU keystore (Gradle firma en release). Sin keystore -> clave debug ----
+      # Con keystore propio la firma es siempre la misma y los equipos pueden ACTUALIZAR
+      # instalando el APK nuevo encima. Con la clave debug del runner (distinta en cada build)
+      # sirve para pruebas, pero habria que desinstalar antes de instalar otra build.
+      - name: Configure signing
+        shell: bash
+        env:
+          KS_B64: ${{ secrets.NPC_ANDROID_KEYSTORE_B64 }}
+          KS_ALIAS: ${{ secrets.NPC_ANDROID_KEY_ALIAS }}
+          KS_PASS: ${{ secrets.NPC_ANDROID_KEYSTORE_PASSWORD }}
+          KEY_PASS: ${{ secrets.NPC_ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -n "${KS_B64:-}" ]; then
+            [ -n "${KS_ALIAS:-}" ] && [ -n "${KS_PASS:-}" ] && [ -n "${KEY_PASS:-}" ] || { echo "::error::Faltan secrets de firma (alias/contrasenas)"; exit 1; }
+            echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/npc.jks"
+            esc() { printf '%s' "$1" | sed 's/\\/\\\\/g'; }
+            {
+              echo "storeFile=$(esc "$RUNNER_TEMP/npc.jks")"
+              echo "storePassword=$(esc "$KS_PASS")"
+              echo "keyAlias=$(esc "$KS_ALIAS")"
+              echo "keyPassword=$(esc "$KEY_PASS")"
+            } > flutter/android/key.properties
+            echo "Firma: keystore propio (release)"
+          else
+            echo "::warning::Sin keystore propio: APK firmado con la clave debug del runner (solo para pruebas; no se podra actualizar encima de otra build)."
+            grep -q "signingConfigs.release" ./flutter/android/app/build.gradle || { echo "::error::build.gradle ya no contiene signingConfigs.release: revisa el parche"; exit 1; }
+            sed -i "s/signingConfigs.release/signingConfigs.debug/g" ./flutter/android/app/build.gradle
+          fi
+
+      - name: Build APK (Flutter)
+        shell: bash
+        env:
+          JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
+        run: |
+          export PATH=/usr/lib/jvm/java-17-openjdk-amd64/bin:$PATH
+          VER=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
+          [ -n "$VER" ] || { echo "::error::No se pudo leer la version de Cargo.toml"; exit 1; }
+          APK_NAME="NPC-PuestoRemoto_${VER}_${{ matrix.job.arch }}.apk"
+          echo "APK_NAME=${APK_NAME}" >> "$GITHUB_ENV"
+          # Memoria de Gradle para CI
+          sed -i "s/org.gradle.jvmargs=-Xmx1024M/org.gradle.jvmargs=-Xmx2g/g" ./flutter/android/gradle.properties
+          pushd flutter
+          flutter build apk --release --target-platform ${{ matrix.job.flutter_platform }} --split-per-abi
+          popd
+          mkdir -p out
+          mv "flutter/build/app/outputs/flutter-apk/app-${{ matrix.job.abi }}-release.apk" "out/${APK_NAME}"
+
+      # ---- Comprobacion final: que el APK lleva realmente lo que tiene que llevar ----
+      - name: Verify APK (nombre, paquete, servidor y clave de fabrica)
+        shell: bash
+        run: |
+          set -euo pipefail
+          BT="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n 1)"
+          APK="out/${APK_NAME}"
+          "$BT/apksigner" verify --print-certs "$APK" | grep -E "Signer #1 certificate (DN|SHA-256)"
+          BADGING="$("$BT/aapt2" dump badging "$APK")"
+          echo "$BADGING" | grep -E "^(package:|application-label:|sdkVersion|targetSdkVersion)"
+          echo "$BADGING" | grep -q "^package: name='${NPC_APP_ID}'" || { echo "::error::applicationId inesperado"; exit 1; }
+          echo "$BADGING" | grep -q "^application-label:'${NPC_DISPLAY_NAME}'" || { echo "::error::nombre visible inesperado"; exit 1; }
+          unzip -p "$APK" "lib/${{ matrix.job.abi }}/librustdesk.so" > "$RUNNER_TEMP/librustdesk.so"
+          grep -aqF -- "$NPC_SERVER" "$RUNNER_TEMP/librustdesk.so" || { echo "::error::El servidor NO esta compilado en el APK"; exit 1; }
+          grep -aqF -- "$NPC_RS_PUB_KEY" "$RUNNER_TEMP/librustdesk.so" || { echo "::error::La clave NO esta compilada en el APK"; exit 1; }
+          if grep -aqF -- "rs-ny.rustdesk.com" "$RUNNER_TEMP/librustdesk.so"; then
+            echo "::warning::Aun aparece rs-ny.rustdesk.com en la libreria (puede ser texto de ayuda, no el servidor por defecto)."
+          fi
+          echo "OK: $(du -h "$APK" | cut -f1)  $APK"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: NPC-PuestoRemoto-apk-${{ matrix.job.arch }}
+          path: out/${{ env.APK_NAME }}
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Remove signing material
+        if: always()
+        shell: bash
+        run: rm -f flutter/android/key.properties "$RUNNER_TEMP/npc.jks"
