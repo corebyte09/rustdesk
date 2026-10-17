@@ -68,10 +68,10 @@ def sub_one(path: Path, pattern: str, value: str, label: str):
 
 def replace_exact(path: Path, old: str, new: str, label: str, expected=1):
     s = read(path)
-    n = s.count(old)
-    if n == 0 and new in s:
+    if new in s:
         print(f"  ok  {label} (ya estaba aplicado)")
         return
+    n = s.count(old)
     if n != expected:
         die(f"[{label}] esperaba {expected} coincidencia(s) de {old!r} en {path.name}, hay {n}.")
     write(path, s.replace(old, new))
@@ -222,8 +222,42 @@ def patch_flutter_text(repo: Path, cfg):
         rp,
         '    gFFI.chatModel.onVoiceCallClosed("End connection");\n  }\n',
         '    gFFI.chatModel.onVoiceCallClosed("End connection");\n'
-        '    await SystemNavigator.pop(); // NPC: cerrar la app al terminar la sesion\n  }\n',
+        '    try {\n'
+        '      await gFFI.invokeMethod("npc_close_app"); // NPC: cerrar la app al terminar la sesion\n'
+        '    } catch (_) {}\n'
+        '    await SystemNavigator.pop();\n  }\n',
         "Sesion: cerrar la app al terminar")
+    # Red de seguridad: si algun paso de la limpieza falla, la app se cierra igualmente a los 3 s.
+    replace_exact(
+        rp,
+        "    unawaited(bind.sessionClose(sessionId: sessionId));\n",
+        "    unawaited(bind.sessionClose(sessionId: sessionId));\n"
+        "    Future.delayed(const Duration(seconds: 3), () async {\n"
+        "      try {\n"
+        "        await gFFI.invokeMethod(\"npc_close_app\"); // NPC\n"
+        "      } catch (_) {}\n"
+        "    });\n",
+        "Sesion: cierre de seguridad a los 3 s")
+    # Lado Android: cierra la actividad y la quita de la lista de apps recientes.
+    replace_exact(
+        repo / "flutter/android/app/src/main/kotlin/com/carriez/flutter_hbb/MainActivity.kt",
+        '                "enable_soft_keyboard" -> {\n',
+        '                "npc_close_app" -> {\n'
+        '                    result.success(true)\n'
+        '                    finishAndRemoveTask()\n'
+        '                }\n'
+        '                "enable_soft_keyboard" -> {\n',
+        "MainActivity: npc_close_app (finishAndRemoveTask)")
+    # Compartir pantalla: ID y clave siempre visibles (por defecto solo salen tras "Iniciar servicio").
+    replace_exact(
+        repo / "flutter/lib/mobile/pages/server_page.dart",
+        "                        gFFI.serverModel.isStart\n"
+        "                            ? ServerInfo()\n"
+        "                            : ServiceNotRunningNotification(),\n",
+        "                        ServerInfo(), // NPC: ID y clave siempre visibles\n"
+        "                        if (!gFFI.serverModel.isStart)\n"
+        "                          ServiceNotRunningNotification(),\n",
+        "Compartir pantalla: ID y clave siempre visibles")
     # Sin historial: al cerrar una sesion saliente se borra el PC de la lista de "Recientes".
     replace_exact(
         rp,
