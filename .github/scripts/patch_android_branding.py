@@ -68,10 +68,15 @@ def sub_one(path: Path, pattern: str, value: str, label: str):
 
 def replace_exact(path: Path, old: str, new: str, label: str, expected=1):
     s = read(path)
-    if new in s:
+    n = s.count(old)
+    if old in new:
+        # El texto nuevo contiene al viejo (p. ej. se le anade algo): ya aplicado si el nuevo esta.
+        if new in s:
+            print(f"  ok  {label} (ya estaba aplicado)")
+            return
+    elif n == 0 and new in s:
         print(f"  ok  {label} (ya estaba aplicado)")
         return
-    n = s.count(old)
     if n != expected:
         die(f"[{label}] esperaba {expected} coincidencia(s) de {old!r} en {path.name}, hay {n}.")
     write(path, s.replace(old, new))
