@@ -248,16 +248,6 @@ def patch_flutter_text(repo: Path, cfg):
         '                }\n'
         '                "enable_soft_keyboard" -> {\n',
         "MainActivity: npc_close_app (finishAndRemoveTask)")
-    # Compartir pantalla: ID y clave siempre visibles (por defecto solo salen tras "Iniciar servicio").
-    replace_exact(
-        repo / "flutter/lib/mobile/pages/server_page.dart",
-        "                        gFFI.serverModel.isStart\n"
-        "                            ? ServerInfo()\n"
-        "                            : ServiceNotRunningNotification(),\n",
-        "                        ServerInfo(), // NPC: ID y clave siempre visibles\n"
-        "                        if (!gFFI.serverModel.isStart)\n"
-        "                          ServiceNotRunningNotification(),\n",
-        "Compartir pantalla: ID y clave siempre visibles")
     # Sin historial: al cerrar una sesion saliente se borra el PC de la lista de "Recientes".
     replace_exact(
         rp,
