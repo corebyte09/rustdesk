@@ -253,6 +253,32 @@ def patch_flutter_text(repo: Path, cfg):
         '                }\n'
         '                "enable_soft_keyboard" -> {\n',
         "MainActivity: npc_close_app (finishAndRemoveTask)")
+    # Ajustes: solo "Acerca de" (version y web). Sin boton de QR, sin ID, sin el resto de secciones.
+    replace_exact(sp, "  final appBarActions = bind.isDisableSettings() ? [] : [ScanButton()];\n",
+                  "  final appBarActions = <Widget>[]; // NPC: sin boton de escaneo QR\n",
+                  "Ajustes: quitar boton QR")
+    replace_exact(
+        sp,
+        "      sections: [\n        customClientSection,\n",
+        "      sections: [\n        if (false) ...[ // NPC: ocultar todo salvo 'Acerca de'\n        customClientSection,\n",
+        "Ajustes: ocultar secciones (inicio)")
+    replace_exact(
+        sp,
+        '        SettingsSection(\n          title: Text(translate("About")),\n',
+        '        ], // NPC: fin de secciones ocultas\n        SettingsSection(\n          title: Text(translate("About")),\n',
+        "Ajustes: ocultar secciones (fin)")
+    replace_exact(
+        sp,
+        "            SettingsTile(\n"
+        "                onPressed: (context) => onCopyId(_myId),\n"
+        "                title: Text(translate(\"ID\")),\n"
+        "                value: Padding(\n"
+        "                  padding: EdgeInsets.symmetric(vertical: 8),\n"
+        "                  child: Text(_myId),\n"
+        "                ),\n"
+        "                leading: Icon(Icons.perm_identity)),\n",
+        "            // NPC: sin ID en Ajustes\n",
+        "Ajustes/About: quitar ID")
     # Sin historial: al cerrar una sesion saliente se borra el PC de la lista de "Recientes".
     replace_exact(
         rp,
